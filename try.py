@@ -1,0 +1,16 @@
+from action_list import *
+
+token_list = TokenList()
+token = CatToken()
+token1 = BasicToken()
+token2 = BasicToken(3)
+action = InsertBackslashAction(2)
+token_list.add_token(token1,0)
+token_list.add_token(token,1)
+# token_list.add_token(token2,2)
+token_list.add_token_action(1,action)
+#token_list.add_token_action(0,action)
+#token_list.add_token_action(0,action)
+print(token_list.get_string())
+token_list.inject("http://192.168.75.128/ci2.php", 0)
+print(token_list.injection_result)
