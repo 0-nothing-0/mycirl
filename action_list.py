@@ -142,16 +142,6 @@ class Base64EncodeAction(Action):
 # 定义 InsertSingleQuoteAction 类
 
 
-def calculate_pos(index, len):
-    if len < index:
-        pos = len // 2
-    elif len < 7:
-        pos = index
-    else:
-        pos = len // 7 * index
-    return pos
-
-
 class InsertSingleQuoteAction(Action):
     def __init__(self, index):
         """
@@ -171,7 +161,9 @@ class InsertSingleQuoteAction(Action):
             return text
 
         # 计算插入点，如果index大于text的长度，那么插入在最后
-        insert_pos = calculate_pos(self.index, len(text))
+        insert_pos = len(text) // 7 * self.index
+        insert_pos = min(insert_pos, len(text))
+
         # 在插入点插入成对的单引号
         new_text = text[:insert_pos] + self.insert_content + text[insert_pos:]
         return new_text
@@ -198,7 +190,9 @@ class InsertDoubleQuoteAction(Action):
             return text
 
         # 计算插入点，如果index大于text的长度，那么插入在最后
-        insert_pos = calculate_pos(self.index, len(text))
+        insert_pos = len(text) // 7 * self.index
+        insert_pos = min(insert_pos, len(text))
+
         # 在插入点插入成对的双引号
         new_text = text[:insert_pos] + self.insert_content + text[insert_pos:]
         return new_text
@@ -214,7 +208,7 @@ class InsertBackslashAction(Action):
         if index < 0 or index > 6:
             raise ValueError("Index out of range. It must be between 0 and 6.")
         self.index = index
-        self.insert_content = "\\"  # 插入的成对反斜杠
+        self.insert_content = "\\\\"  # 插入的成对反斜杠
 
     def apply(self, text):
         """
@@ -225,7 +219,8 @@ class InsertBackslashAction(Action):
             return text
 
         # 计算插入点，如果index大于text的长度，那么插入在最后
-        insert_pos = calculate_pos(self.index, len(text))
+        insert_pos = len(text) // 7 * self.index
+        insert_pos = min(insert_pos, len(text))
 
         # 在插入点插入成对的反斜杠
         new_text = text[:insert_pos] + self.insert_content + text[insert_pos:]
@@ -253,7 +248,8 @@ class SplitToVariableAction(Action):
             return text
 
         # 计算分割点
-        split_pos = calculate_pos(self.index, len(text))
+        split_pos = len(text) // 7 * self.index
+        split_pos = min(split_pos, len(text))
 
         # 分割命令字符串
         part1 = text[:split_pos]
@@ -283,7 +279,8 @@ class ReplaceWithQuestionMarkAction(Action):
             return text
 
         # 计算替换点
-        replace_pos = calculate_pos(self.index, len(text))
+        replace_pos = len(text) // 7 * self.index
+        replace_pos = min(replace_pos, len(text)-1)
 
         # 替换指定位置的字符为 '?'
         new_text = text[:replace_pos] + '?' + text[replace_pos+1:]
@@ -309,7 +306,8 @@ class ReplaceWithAsteriskAction(Action):
             return text
 
         # 计算替换点
-        replace_pos = calculate_pos(self.index, len(text))
+        replace_pos = len(text) // 7 * self.index
+        replace_pos = min(replace_pos, len(text)-1)
 
         # 替换指定位置的字符为 '*'
         new_text = text[:replace_pos] + '*' + text[replace_pos+1:]
@@ -631,15 +629,12 @@ class TokenList:
             res_string += token.execute()  # 调用每个 Token 的 execute 方法获取对应的字符
         return res_string
 
-    def inject(self, url, mod):
+    def inject(self, url):
         # 如果存在多个命令，则不执行注入
         if self.injection_result == "multiplecommand":
             return self.injection_result
         if self.injection_result == "invalidaction":
             return self.injection_result
-        if mod == 1:
-            if self.injection_result == "nosuchaction":
-                return self.injection_result
         command_token_count = sum(isinstance(t, CommandToken)
                                   for t in self.tokens if t is not None)
         if command_token_count == 0:
@@ -686,7 +681,7 @@ class TokenList:
             # 将该位置设置为 SpaceToken 实例
             self.add_token(SpaceToken(), token_index)
 
-        elif 33 <= a <= 33 or 35 <= a <= 44:
+        elif 33 <= a <= 44:
             # 将该位置设置为 commandtokenlist[a-33] 对应的 command 实例
             self.add_token(commandtokenlist[a-33](), token_index)
 
@@ -716,9 +711,7 @@ class TokenList:
                 return False  # 该位置没有有效的 Token 实例，无法添加 Action
 
         else:
-            # print("nosuchaction")
-            # self.injection_result = "invalidaction"
-            self.injection_result = "nosuchaction"
+            self.injection_result = "invalidaction"
             return False  # 解码不成功，未知的 a 值
 
         return True  # 解码成功
